@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <fstream>
+#include <utility>
 #include <vector>
 #include <iostream>
 #include <chrono>
@@ -22,24 +23,18 @@ inline bool fileExists(const std::string &name) {
 
 class ITask {
 public:
-    virtual std::vector<std::string> Run(std::vector<std::string> data) = 0;
+    virtual std::vector<std::string> Run(std::vector<std::string> data, std::vector<int> args) = 0;
 };
 
-using ITaskPtr = std::unique_ptr<ITask>;
-
+template<class T>
 class Tester {
 public:
-    Tester() = delete;
+    Tester() = default;
 
-    Tester(ITaskPtr &task, const std::string &path) {
-        this->task = std::move(task);
-        this->path = path;
-    }
-
-    void RunTests(bool verbose = false, bool assertOnError = false, double tolerance = 0.0) {
-        this->verbose = verbose;
-        this->assertOnError = assertOnError;
-        this->tolerance = tolerance;
+    void RunTests(const std::string &path, bool verbose = false, bool assertOnError = false, double tolerance = 0.0) {
+        this->_verbose = verbose;
+        this->_assertOnError = assertOnError;
+        this->_tolerance = tolerance;
         int testNumber = 0;
         std::cout << "Tester started: " << std::endl;
         while (true) {
@@ -62,13 +57,18 @@ public:
         }
     }
 
+    void SetArgs(std::vector<int> args) {
+        testArgs = std::move(args);
+    }
+
 private:
     bool RunTest(std::string &infile,
                  std::string &outfile) {
         try {
             auto inputData = readFile(infile);
             auto outputData = readFile(outfile);
-            std::vector<std::string> actual = task->Run(inputData);
+            T task;
+            std::vector<std::string> actual = task.Run(inputData, testArgs);
             assert(actual.size() == outputData.size());
             return processResults(inputData, outputData, actual);
         }
@@ -108,30 +108,29 @@ private:
     bool processResults(std::vector<std::string> &inputData,
                         std::vector<std::string> &outputData,
                         std::vector<std::string> &actual) {
-        if (verbose) {
+        if (_verbose) {
             std::cout << "Input:\t\t" << vectorToString(inputData) << std::endl;
             std::cout << "Expected:\t" << vectorToString(outputData) << std::endl;
             std::cout << "Actual:\t\t" << vectorToString(actual) << std::endl;
         }
         bool result = true;
         for (int i = 0; i < actual.size(); ++i) {
-            if (tolerance > 0 && isNumber(actual.at(i)) && isNumber(outputData.at(i))) {
+            if (_tolerance > 0 && isNumber(actual.at(i)) && isNumber(outputData.at(i))) {
                 long double expectedValue = std::strtod(outputData.at(i).c_str(), nullptr);
                 long double actualValue = std::strtod(actual.at(i).c_str(), nullptr);
-                result &= std::abs(expectedValue - actualValue) < tolerance;
+                result &= std::abs(expectedValue - actualValue) < _tolerance;
             } else {
                 result &= actual.at(i) == outputData.at(i);
             }
         }
-        if (assertOnError) {
+        if (_assertOnError) {
             assert(result == true);
         }
         return result;
     }
 
-    ITaskPtr task;
-    std::string path;
-    bool verbose = false;
-    bool assertOnError = false;
-    double tolerance = 0;
+    bool _verbose = false;
+    bool _assertOnError = false;
+    double _tolerance = 0;
+    std::vector<int> testArgs = {};
 };
