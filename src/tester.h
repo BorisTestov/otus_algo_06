@@ -31,11 +31,13 @@ class Tester {
 public:
     Tester() = default;
 
-    void RunTests(const std::string &path, bool verbose = false, bool assertOnError = false, double tolerance = 0.0) {
+    std::vector<std::string>
+    RunTests(const std::string &path, bool verbose = false, bool assertOnError = false, double tolerance = 0.0) {
         this->_verbose = verbose;
         this->_assertOnError = assertOnError;
         this->_tolerance = tolerance;
         int testNumber = 0;
+        std::vector<std::string> times;
         std::cout << "Tester started: " << std::endl;
         while (true) {
             std::cout << "_______________________________" << std::endl;
@@ -47,6 +49,7 @@ public:
             bool result = RunTest(inFile, outFile);
             auto stop = std::chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+            times.push_back(std::to_string(elapsed) + "ms");
             std::string testResult = "Passed";
             if (!result) {
                 testResult = "Failed";
@@ -55,6 +58,7 @@ public:
                       << std::endl;
             testNumber++;
         }
+        return times;
     }
 
     void SetArgs(std::vector<int> args) {
@@ -133,4 +137,43 @@ private:
     bool _assertOnError = false;
     double _tolerance = 0;
     std::vector<int> testArgs = {};
+};
+
+class Table {
+public:
+    // setHeader({"1","10"})
+    void setHeader(std::vector<std::string> values) {
+        std::vector<std::string> header = {" "};
+        std::for_each(values.begin(), values.end(), [&](std::string n) {
+            header.push_back(n);
+        });
+        rows.push_back(header);
+        std::vector<std::string> secondRow;
+        for (int i = 0; i < header.size(); ++i) {
+            secondRow.push_back(":---:");
+        }
+        rows.push_back(secondRow);
+    }
+
+    void addRow(std::string rowName, std::vector<std::string> values) {
+        std::vector<std::string> row = {rowName};
+        std::for_each(values.begin(), values.end(), [&](std::string n) {
+            row.push_back(n);
+        });
+        rows.push_back(row);
+    }
+
+    void print() {
+        for (int i = 0; i < rows.size(); ++i) {
+            std::cout << "|";
+            auto row = rows[i];
+            for (int j = 0; j < row.size(); ++j) {
+                std::cout << row[j] << "|";
+            }
+            std::cout << "\n";
+        }
+    }
+
+private:
+    std::vector<std::vector<std::string>> rows;
 };
